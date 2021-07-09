@@ -21,9 +21,9 @@
 
     <Button
         android:id="@+id/btn_up"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:text="UP"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:text="△"
         android:focusable="false"
         android:focusableInTouchMode="false"
         app:layout_constraintTop_toBottomOf="@id/renderView"
@@ -34,9 +34,9 @@
 
     <Button
         android:id="@+id/btn_down"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:text="DOWN"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:text="▽"
         android:focusable="false"
         android:focusableInTouchMode="false"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -47,9 +47,9 @@
 
     <Button
         android:id="@+id/btn_left"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:text="LEFT"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:text="◁"
         android:focusable="false"
         android:focusableInTouchMode="false"
         app:layout_constraintStart_toStartOf="parent"
@@ -60,9 +60,9 @@
 
     <Button
         android:id="@+id/btn_right"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:text="RIGHT"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:text="▷"
         android:focusable="false"
         android:focusableInTouchMode="false"
         app:layout_constraintEnd_toEndOf="parent"

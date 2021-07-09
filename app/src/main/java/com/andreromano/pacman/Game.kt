@@ -1,9 +1,9 @@
 package com.andreromano.pacman
 
 import android.graphics.*
+import androidx.core.graphics.toRectF
 import com.andreromano.pacman.extensions.scale
 import com.andreromano.pacman.extensions.toPx
-import kotlin.math.*
 
 class Game {
 
@@ -31,7 +31,7 @@ class Game {
              #.##..........##.#     
              #.##.###  ###.##.#     
         ######.##.#      #.##.######
-                  #      #          
+           P      #      #          
         ######.##.#      #.##.######
              #.##.########.##.#     
              #.##..........##.#     
@@ -40,24 +40,27 @@ class Game {
         #............##............#
         #.####.#####.##.#####.####.#
         #.####.#####.##.#####.####.#
-        #o..##.......P........##..o#
+        #o..##................##..o#
         ###.##.##.########.##.##.###
         ###.##.##.########.##.##.###
         #......##....##....##......#
         ############################
     """.trimIndent()
 
-    private var sceneWidth = 0f
-    private var sceneHeight = 0f
+    private var sceneWidth = 0
+    private var sceneHeight = 0
+    private var entityWidth = 0
+    private var entityHeight = 0
+    private var mapTileWidth = 0
+    private var mapTileHeight = 0
 
     private var frameCount: Long = 0
 
-    private var direction: Direction = Direction.RIGHT
+//    private var direction: Direction = Direction.RIGHT
 
     private var score: Int = 0
 
     private var pacman: PacmanEntity? = null
-    private val entities = mutableListOf<Entity>()
     private lateinit var entitiesMap: Array<Array<Entity?>>
 
     private val redStrokePaint = Paint().apply {
@@ -81,13 +84,17 @@ class Game {
         color = Color.YELLOW
     }
 
-    inner class PacmanEntity(x: Float, y: Float) : Entity(x, y) {
-        private val width = entityWidth
-        private val height = entityHeight
+    inner class PacmanEntity(
+        screenPos: Vec2,
+        tilePos: Vec2,
+        width: Int,
+        height: Int,
+    ) : Entity(screenPos, tilePos, width, height) {
 
-        val velocity = 4
+        val velocity = 5
 
         override fun updateAndRender(canvas: Canvas) {
+            val pressedButtonDirection = pressedButtonDirection
             if (pressedButtonDirection != null) {
                 var newX = x
                 var newY = y
@@ -98,61 +105,110 @@ class Game {
                     Direction.LEFT -> newX = x - velocity
                 }
 
-                val testEntity = getEntityFromPos(newX, newY)
-                if (testEntity !is WallEntity) {
-                    x = newX
-                    y = newY
-
-                    if (x >= sceneWidth) {
-                        x -= sceneWidth
-                    }
-                    if (x < 0) {
-                        x += sceneWidth
-                    }
-                    if (y >= sceneHeight) {
-                        y -= sceneHeight
-                    }
-                    if (y < 0) {
-                        y += sceneHeight
-                    }
+                // check if out of bounds and wrap
+                if (newX >= sceneWidth) {
+                    newX -= sceneWidth
                 }
-                if (testEntity is FoodEntity) {
-                    score += 100
-                    removeEntity(testEntity)
+                if (newX < 0) {
+                    newX += sceneWidth
+                }
+                if (newY >= sceneHeight) {
+                    newY -= sceneHeight
+                }
+                if (newY < 0) {
+                    newY += sceneHeight
+                }
+
+                val testPos = Vec2(newX, newY)
+                val testTLTile = getTilePosFromScreenPos(testPos)
+                val testTLEntity = getEntity(testTLTile)
+
+                val testTRTile = getTilePosFromScreenPos(testPos.copy(x = testPos.x + width - 1))
+                val testTREntity = getEntity(testTRTile)
+
+                val testBLTile = getTilePosFromScreenPos(testPos.copy(y = testPos.y + height - 1))
+                val testBLEntity = getEntity(testBLTile)
+
+                val testBRTile = getTilePosFromScreenPos(testPos.copy(x = testPos.x + width - 1, y = testPos.y + height - 1))
+                val testBREntity = getEntity(testBRTile)
+
+                // TODO: Check all entities between pacman and testEntity to prevent tunneling during high speed moves or low frame rate
+                if (testTLEntity !is WallEntity && testTREntity !is WallEntity && testBLEntity !is WallEntity && testBREntity !is WallEntity) {
+                    screenPos = testPos
+                    tilePos = testTLTile
+
+
+                    if (testTLEntity is FoodEntity) {
+                        score += 100
+                        removeEntity(testTLEntity)
+                    }
+                } else {
+
+//                    when (pressedButtonDirection) {
+//                        Direction.UP -> TODO()
+//                        Direction.RIGHT -> TODO()
+//                        Direction.DOWN -> TODO()
+//                        Direction.LEFT -> TODO()
+//                    }
+//
+//
+//
+//
+//                    val testScreenPos = getScreenPosFromTilePos(testTile)
+//
+//                    when (pressedButtonDirection) {
+//                        Direction.UP -> y = testScreenPos.y + entityHeight
+//                        Direction.RIGHT -> x = testScreenPos.x - entityWidth
+//                        Direction.DOWN -> y = testScreenPos.y - entityHeight
+//                        Direction.LEFT -> x = testScreenPos.x + entityWidth
+//                    }
                 }
             }
 
             val right = width + x
             val bottom = height + y
 
-            val rect = RectF(x, y, right.coerceAtMost(sceneWidth), bottom.coerceAtMost(sceneHeight)).scale(0.75f)
+            val rect = screenRect.toRectF().scale(0.75f)
             canvas.drawOval(rect, yellowPaint)
             // enables wrapping around the scene
-            if (right > sceneWidth) canvas.drawOval(RectF(0f, y, right - sceneWidth, bottom).scale(0.75f), yellowPaint)
-            if (bottom > sceneHeight) canvas.drawOval(RectF(x, 0f, right, bottom - sceneHeight).scale(0.75f), yellowPaint)
-            if (right > sceneWidth && bottom > sceneHeight) canvas.drawOval(RectF(0f, 0f, right - sceneWidth, bottom - sceneHeight).scale(0.75f), yellowPaint)
+            if (right > sceneWidth) canvas.drawOval(Rect(right - sceneWidth - width, y, right - sceneWidth, bottom).toRectF().scale(0.75f), yellowPaint)
+            if (bottom > sceneHeight) canvas.drawOval(Rect(x, bottom - sceneHeight - height, right, bottom - sceneHeight).toRectF().scale(0.75f), yellowPaint)
+            if (right > sceneWidth && bottom > sceneHeight) canvas.drawOval(Rect(right - sceneWidth - width, bottom - sceneHeight - height, right - sceneWidth, bottom - sceneHeight).toRectF().scale(0.75f), yellowPaint)
 
             // test entity grid bounding box
-            val testMemX = getMemXFromPos(x)
-            val testMemY = getMemYFromPos(y)
-            val testX = testMemX * entityWidth
-            val testY = testMemY * entityHeight
-            canvas.drawRect(RectF(testX, testY, testX + entityWidth, testY + entityHeight), redStrokePaint)
+            val testX = tileX * entityWidth
+            val testY = tileY * entityHeight
+            canvas.drawRect(Rect(testX, testY, testX + entityWidth, testY + entityHeight), redStrokePaint)
         }
     }
 
+    private fun Vec2.correctOutOfBounds(): Vec2 {
+        var x = this.x
+        var y = this.y
+        // check if out of bounds and wrap
+        if (x >= sceneWidth) {
+            x -= sceneWidth
+        }
+        if (x < 0) {
+            x += sceneWidth
+        }
+        if (y >= sceneHeight) {
+            y -= sceneHeight
+        }
+        if (y < 0) {
+            y += sceneHeight
+        }
 
-    private var entityWidth = 0f
-    private var entityHeight = 0f
-    private var mapWidth = 0
-    private var mapHeight = 0
+        return Vec2(x, y)
+    }
+
 
     inner class PowerUpEntity(
-        x: Float,
-        y: Float,
-    ) : Entity(x, y) {
-        private val width = entityWidth
-        private val height = entityHeight
+        screenPos: Vec2,
+        tilePos: Vec2,
+        width: Int,
+        height: Int,
+    ) : Entity(screenPos, tilePos, width, height) {
 
         private val paint = Paint().apply {
             style = Paint.Style.FILL
@@ -160,16 +216,16 @@ class Game {
         }
 
         override fun updateAndRender(canvas: Canvas) {
-            canvas.drawOval(RectF(x + (width / 4), y + (height / 4), x + (width * 3 / 4), y + (height * 3 / 4)), paint)
+            canvas.drawOval(Rect(x, y, x + width, y + height).toRectF().scale(0.5f), paint)
         }
     }
 
     inner class WallEntity(
-        x: Float,
-        y: Float,
-    ) : Entity(x, y) {
-        private val width = entityWidth
-        private val height = entityHeight
+        screenPos: Vec2,
+        tilePos: Vec2,
+        width: Int,
+        height: Int,
+    ) : Entity(screenPos, tilePos, width, height) {
 
         private val paint = Paint().apply {
             style = Paint.Style.FILL
@@ -177,17 +233,16 @@ class Game {
         }
 
         override fun updateAndRender(canvas: Canvas) {
-            canvas.drawRect(RectF(x, y, (x + width), (y + height)), paint)
+            canvas.drawRect(Rect(x, y, x + width, y + height), paint)
         }
     }
 
     inner class FoodEntity(
-        x: Float,
-        y: Float,
-    ) : Entity(x, y) {
-
-        private val width = entityWidth
-        private val height = entityHeight
+        screenPos: Vec2,
+        tilePos: Vec2,
+        width: Int,
+        height: Int,
+    ) : Entity(screenPos, tilePos, width, height) {
 
         private val paint = Paint().apply {
             style = Paint.Style.FILL
@@ -201,7 +256,7 @@ class Game {
         }
 
         override fun updateAndRender(canvas: Canvas) {
-            canvas.drawOval(RectF(x + (width * 4 / 10), y + (height * 4 / 10), x + (width * 6 / 10), y + (height * 6 / 10)), paint)
+            canvas.drawOval(RectF(x + (width.toFloat() * 4 / 10), y + (height.toFloat() * 4 / 10), x + (width.toFloat() * 6 / 10), y + (height.toFloat() * 6 / 10)), paint)
         }
     }
 
@@ -219,17 +274,13 @@ class Game {
     }
 
     fun updateAndRender(canvas: Canvas) {
-//        val pacman = entities.first()
-//        entities.drop(1).forEach {
-//            it.updateAndRender(canvas)
-//        }
         entitiesMap.forEachIndexed { y, rows ->
             rows.forEachIndexed { x, entity ->
                 entity?.updateAndRender(canvas)
             }
         }
         pacman?.updateAndRender(canvas)
-        canvas.drawText("Rect Pos: (${pacman?.x?.toInt()}, ${pacman?.y?.toInt()})", sceneWidth / 2, sceneHeight / 2, textPaint)
+        canvas.drawText("Rect Pos: (${pacman?.x}, ${pacman?.y})", sceneWidth / 2f, sceneHeight / 2f, textPaint)
         canvas.drawText("Score: $score", 50f, sceneHeight - 50f, boldTextPaint)
 
 
@@ -253,61 +304,73 @@ class Game {
     }
 
     private fun removeEntity(entity: Entity) {
-        val memX = (entity.x / entityWidth).toInt()
-        val memY = (entity.y / entityHeight).toInt()
-
-        entitiesMap[memY][memX] = null
+        entitiesMap[entity.tileY][entity.tileX] = null
     }
 
-    private fun getMemXFromPos(x: Float): Int = (x / entityWidth).toInt()
-    private fun getMemYFromPos(y: Float): Int = (y / entityHeight).toInt()
+    private fun getScreenPosFromTilePos(tilePos: Vec2): Vec2 {
+        val tileX = tilePos.x * entityWidth
+        val tileY = tilePos.y * entityHeight
 
-    private fun getEntityFromPos(x: Float, y: Float): Entity? {
-        val memX = (x / entityWidth).toInt()
-        val memY = (y / entityHeight).toInt()
-
-        return entitiesMap[memY][memX]
+        return Vec2(tileX, tileY)
     }
+
+    private fun getTilePosFromScreenPos(screenPos: Vec2): Vec2 {
+        val tileX = screenPos.x / entityWidth
+        val tileY = screenPos.y / entityHeight
+
+        return Vec2(tileX, tileY)
+    }
+
+    private fun getTilePosFromScreenPos(x: Int, y: Int): Vec2 {
+        val tileX = x / entityWidth
+        val tileY = y / entityHeight
+
+        return Vec2(tileX, tileY)
+    }
+
+    private fun getEntity(tilePos: Vec2): Entity? = entitiesMap[tilePos.y][tilePos.x]
 
     fun sceneSizeChanged(w: Int, h: Int) {
-        sceneWidth = w.toFloat()
-        sceneHeight = h.toFloat()
-
-        entities.clear()
         val rows = gameboard.split("\n")
 
-        mapWidth = rows.first().length
-        mapHeight = rows.size
-        entityWidth = sceneWidth / mapWidth
-        entityHeight = sceneHeight / mapHeight
-        entitiesMap = Array<Array<Entity?>>(mapHeight) {
-            Array(mapWidth) {
+        mapTileWidth = rows.first().length
+        mapTileHeight = rows.size
+        entityWidth = w / mapTileWidth
+        entityHeight = h / mapTileHeight
+
+        // TODO: Pad and center gameboard
+        val remainderWidth = w % mapTileWidth
+        val remainderHeight = h % mapTileHeight
+
+        sceneWidth = w - remainderWidth
+        sceneHeight = h - remainderHeight
+
+        entitiesMap = Array<Array<Entity?>>(mapTileHeight) {
+            Array(mapTileWidth) {
                 null
             }
         }
 
         rows.forEachIndexed { y, row ->
             row.forEachIndexed { x, c ->
+                val tilePos = Vec2(x, y)
+                val screenPos = getScreenPosFromTilePos(tilePos)
                 when (c) {
                     'P' -> {
-                        val entity = PacmanEntity(x * entityWidth, y * entityHeight)
-                        entities.add(0, entity)
+                        val entity = PacmanEntity(screenPos, tilePos, entityWidth, entityHeight)
                         entitiesMap[y][x] = entity
                         pacman = entity
                     }
                     'o' -> {
-                        val entity = PowerUpEntity(x * entityWidth, y * entityHeight)
-                        entities.add(entity)
+                        val entity = PowerUpEntity(screenPos, tilePos, entityWidth, entityHeight)
                         entitiesMap[y][x] = entity
                     }
                     '.' -> {
-                        val entity = FoodEntity(x * entityWidth, y * entityHeight)
-                        entities.add(entity)
+                        val entity = FoodEntity(screenPos, tilePos, entityWidth, entityHeight)
                         entitiesMap[y][x] = entity
                     }
                     '#' -> {
-                        val entity = WallEntity(x * entityWidth, y * entityHeight)
-                        entities.add(entity)
+                        val entity = WallEntity(screenPos, tilePos, entityWidth, entityHeight)
                         entitiesMap[y][x] = entity
                     }
                     else -> {}
@@ -317,7 +380,7 @@ class Game {
     }
 
     fun directionChanged(direction: Direction) {
-        this.direction = direction
+//        this.direction = direction
     }
 
 

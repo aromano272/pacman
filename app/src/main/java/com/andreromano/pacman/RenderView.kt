@@ -2,10 +2,7 @@ package com.andreromano.pacman
 
 import android.content.Context
 import android.content.res.Resources
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.RectF
+import android.graphics.*
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.SurfaceHolder
@@ -51,15 +48,14 @@ class RenderView @JvmOverloads constructor(
     override fun run() {
         while (isRunning) {
             if (!holder.surface.isValid) return
-            val canvas = holder.lockHardwareCanvas()
+            val canvas = holder.lockHardwareCanvas() ?: continue
 
-            val rect = RectF(0f, 0f, width.toFloat(), height.toFloat())
+            val rect = Rect(0, 0, width, height)
 
             canvas.drawRect(rect, paint)
             game.updateAndRender(canvas)
 
             drawFps(canvas)
-
 
             holder.unlockCanvasAndPost(canvas)
             frameCount++
