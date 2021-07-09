@@ -144,6 +144,44 @@ class Game {
                     }
                 } else {
 
+//                    val collidingWallEntity =
+//                        (testTLEntity as? WallEntity) ?:
+//                        (testTREntity as? WallEntity) ?:
+//                        (testBLEntity as? WallEntity) ?:
+//                        (testBREntity as? WallEntity)!!
+
+
+                    when (pressedButtonDirection) {
+                        Direction.UP -> {
+                            val wall = (testTLEntity as? WallEntity) ?: (testTREntity as? WallEntity)!!
+                            val newTileY = wall.tileY + 1
+                            val newScreenY = getScreenYFromTileY(newTileY)
+                            y = newScreenY
+                            tilePos = getTilePosFromScreenPos(screenPos)
+                        }
+                        Direction.RIGHT -> {
+                            val wall = (testTREntity as? WallEntity) ?: (testBREntity as? WallEntity)!!
+                            val newTileX = wall.tileX - 1
+                            val newScreenX = getScreenXFromTileX(newTileX)
+                            x = newScreenX
+                            tilePos = getTilePosFromScreenPos(screenPos)
+                        }
+                        Direction.DOWN -> {
+                            val wall = (testBLEntity as? WallEntity) ?: (testBREntity as? WallEntity)!!
+                            val newTileY = wall.tileY - 1
+                            val newScreenY = getScreenYFromTileY(newTileY)
+                            y = newScreenY
+                            tilePos = getTilePosFromScreenPos(screenPos)
+                        }
+                        Direction.LEFT -> {
+                            val wall = (testTLEntity as? WallEntity) ?: (testBLEntity as? WallEntity)!!
+                            val newTileX = wall.tileX + 1
+                            val newScreenX = getScreenXFromTileX(newTileX)
+                            x = newScreenX
+                            tilePos = getTilePosFromScreenPos(screenPos)
+                        }
+                    }
+
 //                    when (pressedButtonDirection) {
 //                        Direction.UP -> TODO()
 //                        Direction.RIGHT -> TODO()
@@ -307,23 +345,29 @@ class Game {
         entitiesMap[entity.tileY][entity.tileX] = null
     }
 
+    private fun getScreenXFromTileX(tileX: Int): Int = tileX * entityWidth
+    private fun getScreenYFromTileY(tileY: Int): Int = tileY * entityHeight
+
+    private fun getTileXFromScreenX(screenX: Int): Int = screenX / entityWidth
+    private fun getTileYFromScreenY(screenY: Int): Int = screenY / entityHeight
+
     private fun getScreenPosFromTilePos(tilePos: Vec2): Vec2 {
-        val tileX = tilePos.x * entityWidth
-        val tileY = tilePos.y * entityHeight
+        val tileX = getScreenXFromTileX(tilePos.x)
+        val tileY = getScreenYFromTileY(tilePos.y)
 
         return Vec2(tileX, tileY)
     }
 
     private fun getTilePosFromScreenPos(screenPos: Vec2): Vec2 {
-        val tileX = screenPos.x / entityWidth
-        val tileY = screenPos.y / entityHeight
+        val tileX = getTileXFromScreenX(screenPos.x)
+        val tileY = getTileYFromScreenY(screenPos.y)
 
         return Vec2(tileX, tileY)
     }
 
     private fun getTilePosFromScreenPos(x: Int, y: Int): Vec2 {
-        val tileX = x / entityWidth
-        val tileY = y / entityHeight
+        val tileX = getTileXFromScreenX(x)
+        val tileY = getTileYFromScreenY(y)
 
         return Vec2(tileX, tileY)
     }
