@@ -4,6 +4,7 @@ import android.graphics.*
 import androidx.core.graphics.toRectF
 import com.andreromano.pacman.extensions.scale
 import com.andreromano.pacman.extensions.toPx
+import kotlin.math.*
 
 class Game {
 
@@ -91,7 +92,7 @@ class Game {
         height: Int,
     ) : Entity(screenPos, tilePos, width, height) {
 
-        val velocity = 5
+        val velocity = 2
 
         override fun updateAndRender(canvas: Canvas) {
             val pressedButtonDirection = pressedButtonDirection
@@ -121,16 +122,16 @@ class Game {
 
                 val testPos = Vec2(newX, newY)
                 val testTLTile = getTilePosFromScreenPos(testPos)
-                val testTLEntity = getEntity(testTLTile)
+                val testTLEntity = getEntity(testTLTile.correctTileOutOfBounds())
 
                 val testTRTile = getTilePosFromScreenPos(testPos.copy(x = testPos.x + width - 1))
-                val testTREntity = getEntity(testTRTile)
+                val testTREntity = getEntity(testTRTile.correctTileOutOfBounds())
 
                 val testBLTile = getTilePosFromScreenPos(testPos.copy(y = testPos.y + height - 1))
-                val testBLEntity = getEntity(testBLTile)
+                val testBLEntity = getEntity(testBLTile.correctTileOutOfBounds())
 
                 val testBRTile = getTilePosFromScreenPos(testPos.copy(x = testPos.x + width - 1, y = testPos.y + height - 1))
-                val testBREntity = getEntity(testBRTile)
+                val testBREntity = getEntity(testBRTile.correctTileOutOfBounds())
 
                 // TODO: Check all entities between pacman and testEntity to prevent tunneling during high speed moves or low frame rate
                 if (testTLEntity !is WallEntity && testTREntity !is WallEntity && testBLEntity !is WallEntity && testBREntity !is WallEntity) {
@@ -153,31 +154,87 @@ class Game {
 
                     when (pressedButtonDirection) {
                         Direction.UP -> {
-                            val wall = (testTLEntity as? WallEntity) ?: (testTREntity as? WallEntity)!!
-                            val newTileY = wall.tileY + 1
+                            val newTileY = testTLTile.y + 1
                             val newScreenY = getScreenYFromTileY(newTileY)
+                            val deltaY = abs(y - newScreenY)
+                            val velocityLeft = velocity - deltaY
                             y = newScreenY
+
+                            if (velocityLeft > 0 && !(testTLEntity is WallEntity && testTREntity is WallEntity)) {
+                                if (testTLEntity !is WallEntity) {
+                                    val testTileScreenX = getScreenXFromTileX(testTLTile.x)
+                                    val deltaX = x - testTileScreenX
+                                    x -= min(velocityLeft, deltaX)
+                                } else {
+                                    val testTileScreenX = getScreenXFromTileX(testTRTile.x)
+                                    val deltaX = testTileScreenX - x
+                                    x += min(velocityLeft, deltaX)
+                                }
+                            }
+
                             tilePos = getTilePosFromScreenPos(screenPos)
                         }
                         Direction.RIGHT -> {
-                            val wall = (testTREntity as? WallEntity) ?: (testBREntity as? WallEntity)!!
-                            val newTileX = wall.tileX - 1
+                            val newTileX = testTRTile.x - 1
                             val newScreenX = getScreenXFromTileX(newTileX)
+                            val deltaX = abs(x - newScreenX)
+                            val velocityLeft = velocity - deltaX
                             x = newScreenX
+
+                            if (velocityLeft > 0 && !(testTREntity is WallEntity && testBREntity is WallEntity)) {
+                                if (testTREntity !is WallEntity) {
+                                    val testTileScreenY = getScreenYFromTileY(testTRTile.y)
+                                    val deltaY = y - testTileScreenY
+                                    y -= min(velocityLeft, deltaY)
+                                } else {
+                                    val testTileScreenY = getScreenYFromTileY(testBRTile.y)
+                                    val deltaY = testTileScreenY - y
+                                    y += min(velocityLeft, deltaY)
+                                }
+                            }
+
                             tilePos = getTilePosFromScreenPos(screenPos)
                         }
                         Direction.DOWN -> {
-                            val wall = (testBLEntity as? WallEntity) ?: (testBREntity as? WallEntity)!!
-                            val newTileY = wall.tileY - 1
+                            val newTileY = testBLTile.y - 1
                             val newScreenY = getScreenYFromTileY(newTileY)
+                            val deltaY = abs(y - newScreenY)
+                            val velocityLeft = velocity - deltaY
                             y = newScreenY
+
+                            if (velocityLeft > 0 && !(testBLEntity is WallEntity && testBREntity is WallEntity)) {
+                                if (testBLEntity !is WallEntity) {
+                                    val testTileScreenX = getScreenXFromTileX(testBLTile.x)
+                                    val deltaX = x - testTileScreenX
+                                    x -= min(velocityLeft, deltaX)
+                                } else {
+                                    val testTileScreenX = getScreenXFromTileX(testBRTile.x)
+                                    val deltaX = testTileScreenX - x
+                                    x += min(velocityLeft, deltaX)
+                                }
+                            }
+
                             tilePos = getTilePosFromScreenPos(screenPos)
                         }
                         Direction.LEFT -> {
-                            val wall = (testTLEntity as? WallEntity) ?: (testBLEntity as? WallEntity)!!
-                            val newTileX = wall.tileX + 1
+                            val newTileX = testTLTile.x + 1
                             val newScreenX = getScreenXFromTileX(newTileX)
+                            val deltaX = abs(x - newScreenX)
+                            val velocityLeft = velocity - deltaX
                             x = newScreenX
+
+                            if (velocityLeft > 0 && !(testTLEntity is WallEntity && testBLEntity is WallEntity)) {
+                                if (testTLEntity !is WallEntity) {
+                                    val testTileScreenY = getScreenYFromTileY(testTLTile.y)
+                                    val deltaY = y - testTileScreenY
+                                    y -= min(velocityLeft, deltaY)
+                                } else {
+                                    val testTileScreenY = getScreenYFromTileY(testBLTile.y)
+                                    val deltaY = testTileScreenY - y
+                                    y += min(velocityLeft, deltaY)
+                                }
+                            }
+
                             tilePos = getTilePosFromScreenPos(screenPos)
                         }
                     }
@@ -220,7 +277,7 @@ class Game {
         }
     }
 
-    private fun Vec2.correctOutOfBounds(): Vec2 {
+    private fun Vec2.correctScreenOutOfBounds(): Vec2 {
         var x = this.x
         var y = this.y
         // check if out of bounds and wrap
@@ -235,6 +292,26 @@ class Game {
         }
         if (y < 0) {
             y += sceneHeight
+        }
+
+        return Vec2(x, y)
+    }
+
+    private fun Vec2.correctTileOutOfBounds(): Vec2 {
+        var x = this.x
+        var y = this.y
+        // check if out of bounds and wrap
+        if (x >= mapTileWidth) {
+            x -= mapTileWidth
+        }
+        if (x < 0) {
+            x += mapTileWidth
+        }
+        if (y >= mapTileHeight) {
+            y -= mapTileHeight
+        }
+        if (y < 0) {
+            y += mapTileHeight
         }
 
         return Vec2(x, y)
