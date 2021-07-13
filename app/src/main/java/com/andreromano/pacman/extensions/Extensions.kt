@@ -7,6 +7,9 @@ import android.util.TypedValue
 import com.andreromano.pacman.Vec2
 import kotlin.math.roundToInt
 
+val <T> T.exhaustive: T
+    get() = this
+
 fun Double.round(decimals: Int): Double {
     var multiplier = 1.0
     repeat(decimals) { multiplier *= 10 }

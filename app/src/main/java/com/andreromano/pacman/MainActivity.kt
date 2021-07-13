@@ -48,6 +48,9 @@ class MainActivity : AppCompatActivity() {
             }
             false
         }
+        btn_restart.setOnClickListener {
+            renderView.onViewEvent(Game.ViewEvent.RESTART_CLICKED)
+        }
 
 //        btn_up.setOnClickListener {
 //            renderView.directionChanged(Game.Direction.UP)

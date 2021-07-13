@@ -14,6 +14,7 @@ class Game {
         LEFT
     }
 
+    private var currentLevel: Level? = Level.ONE_VERTICAL_PASSAGE
 
     private var screenWidth = 0
     private var screenHeight = 0
@@ -29,7 +30,11 @@ class Game {
     private var score: Int = 0
 
     private var pacman: PacmanEntity? = null
-    private lateinit var entitiesMap: Array<Array<Entity?>>
+    private var entitiesMap: Array<Array<Entity?>> = Array<Array<Entity?>>(mapTileHeight) {
+        Array(mapTileWidth) {
+            null
+        }
+    }
 
     private val redStrokePaint = Paint().apply {
         style = Paint.Style.STROKE
@@ -67,7 +72,7 @@ class Game {
         override val canvasRect: RectF
             get() = super.canvasRect.scale(0.75f)
 
-        val velocity = 1
+        val velocity = 5
 
         override fun updateAndRender(canvas: Canvas) {
             val pressedButtonDirection = pressedButtonDirection
@@ -429,7 +434,8 @@ class Game {
             ViewEvent.LEFT_ARROW_RELEASED -> pressedButtonDirection = null
             ViewEvent.RIGHT_ARROW_PRESSED -> pressedButtonDirection = Direction.RIGHT
             ViewEvent.RIGHT_ARROW_RELEASED -> pressedButtonDirection = null
-        }
+            ViewEvent.RESTART_CLICKED -> restartLevel()
+        }.exhaustive
     }
 
     private fun removeEntity(entity: Entity) {
@@ -466,21 +472,31 @@ class Game {
     private fun getEntity(tilePos: Vec2): Entity? = entitiesMap[tilePos.y][tilePos.x]
 
     fun sceneSizeChanged(w: Int, h: Int) {
-        val rows = Level.ONE_VERTICAL_PASSAGE.split("\n")
-
         screenWidth = w
         screenHeight = h
+
+        currentLevel?.let { loadLevel(it) }
+    }
+
+    fun restartLevel() {
+        currentLevel?.let { loadLevel(it) }
+    }
+
+    fun loadLevel(level: Level) {
+        score = 0
+        val rows = level.gameboard.split("\n")
+
         mapTileWidth = rows.first().length
         mapTileHeight = rows.size
-        entityWidth = w / mapTileWidth
-        entityHeight = h / mapTileHeight
+        entityWidth = screenWidth / mapTileWidth
+        entityHeight = screenHeight / mapTileHeight
 
         // TODO: Pad and center gameboard
-        val remainderWidth = w % mapTileWidth
-        val remainderHeight = h % mapTileHeight
+        val remainderWidth = screenWidth % mapTileWidth
+        val remainderHeight = screenHeight % mapTileHeight
 
-        sceneWidth = w - remainderWidth
-        sceneHeight = h - remainderHeight
+        sceneWidth = screenWidth - remainderWidth
+        sceneHeight = screenHeight - remainderHeight
 
         entitiesMap = Array<Array<Entity?>>(mapTileHeight) {
             Array(mapTileWidth) {
@@ -530,6 +546,7 @@ class Game {
         LEFT_ARROW_RELEASED,
         RIGHT_ARROW_PRESSED,
         RIGHT_ARROW_RELEASED,
+        RESTART_CLICKED,
     }
 
 }
