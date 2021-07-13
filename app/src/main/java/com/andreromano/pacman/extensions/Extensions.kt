@@ -4,6 +4,7 @@ import android.content.res.Resources
 import android.graphics.Rect
 import android.graphics.RectF
 import android.util.TypedValue
+import com.andreromano.pacman.Vec2
 import kotlin.math.roundToInt
 
 fun Double.round(decimals: Int): Double {
@@ -48,3 +49,23 @@ fun RectF.scale(factor: Float): RectF {
         (bottom - deltaHeight / 2),
     )
 }
+
+val Rect.topLeft: Vec2
+    get() = Vec2(left, top)
+
+val Rect.topRight: Vec2
+    get() = Vec2(right, top)
+
+val Rect.bottomLeft: Vec2
+    get() = Vec2(left, bottom)
+
+val Rect.bottomRight: Vec2
+    get() = Vec2(right, bottom)
+
+fun Rect.intersects(other: Rect): Boolean = this.intersects(other.left, other.top, other.right, other.bottom)
+
+fun RectF.intersects(other: RectF): Boolean = this.intersects(other.left, other.top, other.right, other.bottom)
+
+fun Rect.copy(left: Int = this.left, top: Int = this.top, right: Int = this.right, bottom: Int = this.bottom): Rect = Rect(left, top, right, bottom)
+
+fun RectF.copy(left: Float = this.left, top: Float = this.top, right: Float = this.right, bottom: Float = this.bottom): RectF = RectF(left, top, right, bottom)

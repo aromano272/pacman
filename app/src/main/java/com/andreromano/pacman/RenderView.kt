@@ -1,17 +1,13 @@
 package com.andreromano.pacman
 
 import android.content.Context
-import android.content.res.Resources
 import android.graphics.*
 import android.util.AttributeSet
-import android.util.TypedValue
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import com.andreromano.pacman.extensions.round
 import com.andreromano.pacman.extensions.toPx
-import timber.log.Timber
 import java.util.*
-import kotlin.math.roundToInt
 
 
 class RenderView @JvmOverloads constructor(
@@ -53,7 +49,9 @@ class RenderView @JvmOverloads constructor(
             val rect = Rect(0, 0, width, height)
 
             canvas.drawRect(rect, paint)
+            computeFrameStartNano = System.nanoTime()
             game.updateAndRender(canvas)
+            computeFrameEndNano = System.nanoTime()
 
             drawFps(canvas)
 
@@ -69,25 +67,34 @@ class RenderView @JvmOverloads constructor(
 
     private var frameCount: Long = 0
     private var last100FrameTimes: LinkedList<Long> = LinkedList()
+    private var last100ComputeFrameTimes: LinkedList<Long> = LinkedList()
     private var lastFrameMs: Long = System.currentTimeMillis()
+    private var computeFrameStartNano: Long = System.nanoTime()
+    private var computeFrameEndNano: Long = System.nanoTime()
     private var medianFrameTime: Long = 0
     private var minFrameTime: Long = 0
     private var maxFrameTime: Long = 0
+    private var medianComputeFrameTime: Long = 0
 
     private fun drawFps(canvas: Canvas) {
         val currFrameMs = System.currentTimeMillis()
         val lastFrameMs = lastFrameMs
         this.lastFrameMs = currFrameMs
         val currFrameTime = (currFrameMs - lastFrameMs)
+        val currComputeFrameTime = (computeFrameEndNano - computeFrameStartNano) / 1_000
 
         if (last100FrameTimes.size == 100) last100FrameTimes.removeFirst()
+        if (last100ComputeFrameTimes.size == 100) last100ComputeFrameTimes.removeFirst()
         last100FrameTimes.addLast(currFrameTime)
+        last100ComputeFrameTimes.addLast(currComputeFrameTime)
 
         if (frameCount % 60 == 0L) {
             val sortedFrameTimes = last100FrameTimes.sorted()
+            val sortedComputeFrameTimes = last100ComputeFrameTimes.sorted()
             medianFrameTime = sortedFrameTimes.getOrNull(50) ?: 0
             minFrameTime = sortedFrameTimes.firstOrNull() ?: 0
             maxFrameTime = sortedFrameTimes.lastOrNull() ?: 0
+            medianComputeFrameTime = sortedComputeFrameTimes.getOrNull(50) ?: 0
         }
 
         val fps = (1000.0 / (medianFrameTime)).round(1)
@@ -95,6 +102,7 @@ class RenderView @JvmOverloads constructor(
         canvas.drawText("FPS: $fps", 50f, 50f, textPaint)
         canvas.drawText("Min FT: $minFrameTime", 50f, 50f + textPaint.textSize, textPaint)
         canvas.drawText("Max FT: $maxFrameTime", 50f, 50f + textPaint.textSize * 2, textPaint)
+        canvas.drawText("Compute FT: ${medianComputeFrameTime / 1_000f}", 50f, 50f + textPaint.textSize * 3, textPaint)
     }
 
 

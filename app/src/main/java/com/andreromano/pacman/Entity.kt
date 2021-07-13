@@ -2,6 +2,8 @@ package com.andreromano.pacman
 
 import android.graphics.Canvas
 import android.graphics.Rect
+import android.graphics.RectF
+import androidx.core.graphics.toRectF
 
 abstract class Entity(
     var screenPos: Vec2,
@@ -38,10 +40,13 @@ abstract class Entity(
         }
 
     val screenRect: Rect
-        get() = Rect(screenPos.x, screenPos.y, screenPos.x + width, screenPos.y + height)
+        get() = Rect(x - width / 2, y - width / 2, x + width / 2, y + width / 2)
+
+    open val canvasRect: RectF
+        get() = screenRect.toRectF()
 
     val tileRect: Rect
-        get() = Rect(tilePos.x * width, tilePos.y * height, tilePos.x * width + width, tilePos.y * height + height)
+        get() = Rect(tileX * width, tileY * height, tileX * width + width, tileY * height + height)
 
     abstract fun updateAndRender(canvas: Canvas)
 
