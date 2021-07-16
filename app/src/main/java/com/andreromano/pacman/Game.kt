@@ -72,7 +72,7 @@ class Game {
         override val canvasRect: RectF
             get() = super.canvasRect.scale(0.75f)
 
-        val velocity = 5
+        val velocity = 3
 
         override fun updateAndRender(canvas: Canvas) {
             if (!::direction.isInitialized && ::queuedDirection.isInitialized) direction = queuedDirection
@@ -117,8 +117,6 @@ class Game {
                                     direction = Direction.RIGHT
                                 }
                             }
-
-
                         Direction.RIGHT ->
                             if (queuedDirection == Direction.UP) {
                                 val testTilePos = tilePos.copy(y = tileY - 1)
@@ -213,64 +211,51 @@ class Game {
                 }
 
                 val testPos = Vec2(newX, newY)
-                val testTLTile = getTilePosFromScreenPos(newX - width / 2, newY - height / 2)
-                val testTLEntity = getEntity(testTLTile.correctTileOutOfBounds())
-
-                val testTRTile = getTilePosFromScreenPos(newX + width / 2 - 1, newY - height / 2)
-                val testTREntity = getEntity(testTRTile.correctTileOutOfBounds())
-
-                val testBLTile = getTilePosFromScreenPos(newX - width / 2, newY + height / 2 - 1)
-                val testBLEntity = getEntity(testBLTile.correctTileOutOfBounds())
-
-                val testBRTile = getTilePosFromScreenPos(newX + width / 2 - 1, newY + height / 2 - 1)
-                val testBREntity = getEntity(testBRTile.correctTileOutOfBounds())
+                val testTile = let {
+                    val testTilePos = getTilePosFromScreenPos(testPos)
+                    when (direction) {
+                        Direction.UP -> testTilePos.copy(y = testTilePos.y - 1)
+                        Direction.RIGHT -> testTilePos.copy(x = testTilePos.x + 1)
+                        Direction.DOWN -> testTilePos.copy(y = testTilePos.y + 1)
+                        Direction.LEFT -> testTilePos.copy(x = testTilePos.x - 1)
+                    }
+                }
+                val testEntity = getEntity(testTile.correctTileOutOfBounds())
 
                 // TODO: Check all entities between pacman and testEntity to prevent tunneling during high speed moves or low frame rate
-                if (testTLEntity !is WallEntity && testTREntity !is WallEntity && testBLEntity !is WallEntity && testBREntity !is WallEntity) {
+                if (testEntity !is WallEntity) {
                     screenPos = testPos
                     tilePos = getTilePosFromScreenPos(screenPos)
-
-                    if (testTLEntity is FoodEntity && testTLEntity.canvasRect.intersects(canvasRect)) {
-                        score += 100
-                        removeEntity(testTLEntity)
-                    }
-                    if (testTREntity is FoodEntity && testTREntity.canvasRect.intersects(canvasRect)) {
-                        score += 100
-                        removeEntity(testTREntity)
-                    }
-                    if (testBLEntity is FoodEntity && testBLEntity.canvasRect.intersects(canvasRect)) {
-                        score += 100
-                        removeEntity(testBLEntity)
-                    }
-                    if (testBREntity is FoodEntity && testBREntity.canvasRect.intersects(canvasRect)) {
-                        score += 100
-                        removeEntity(testBREntity)
-                    }
                 } else {
                     // makes pacman snug to the wall when a collision is detected on newX or newY
                     when (direction) {
                         Direction.UP -> {
-                            val newTileY = testTLTile.y + 1
+                            val newTileY = testTile.y + 1
                             val newScreenY = getScreenYFromTileY(newTileY)
                             y = newScreenY
                         }
                         Direction.RIGHT -> {
-                            val newTileX = testTRTile.x - 1
+                            val newTileX = testTile.x - 1
                             val newScreenX = getScreenXFromTileX(newTileX)
                             x = newScreenX
                         }
                         Direction.DOWN -> {
-                            val newTileY = testBLTile.y - 1
+                            val newTileY = testTile.y - 1
                             val newScreenY = getScreenYFromTileY(newTileY)
                             y = newScreenY
                         }
                         Direction.LEFT -> {
-                            val newTileX = testTLTile.x + 1
+                            val newTileX = testTile.x + 1
                             val newScreenX = getScreenXFromTileX(newTileX)
                             x = newScreenX
                         }
                     }
                     tilePos = getTilePosFromScreenPos(screenPos)
+                }
+
+                if (testEntity is FoodEntity) {
+                    score += 100
+                    removeEntity(testEntity)
                 }
             }
             val left = x - width / 2
@@ -455,7 +440,7 @@ class Game {
     fun updateAndRender(canvas: Canvas) {
         entitiesMap.forEachIndexed { y, rows ->
             rows.forEachIndexed { x, entity ->
-                entity?.updateAndRender(canvas)
+                if (entity != pacman) entity?.updateAndRender(canvas)
             }
         }
         pacman?.updateAndRender(canvas)
