@@ -106,10 +106,10 @@ class MainActivity : AppCompatActivity() {
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
         Timber.e("onKeyUp $event")
         when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_DOWN -> handler.postDelayed(downArrowReleasedRunnable, 50)
-            KeyEvent.KEYCODE_DPAD_LEFT -> handler.postDelayed(leftArrowReleasedRunnable, 50)
-            KeyEvent.KEYCODE_DPAD_RIGHT -> handler.postDelayed(rightArrowReleasedRunnable, 50)
-            KeyEvent.KEYCODE_DPAD_UP -> handler.postDelayed(upArrowReleasedRunnable, 50)
+            KeyEvent.KEYCODE_DPAD_DOWN -> downArrowReleasedRunnable.run()
+            KeyEvent.KEYCODE_DPAD_LEFT -> leftArrowReleasedRunnable.run()
+            KeyEvent.KEYCODE_DPAD_RIGHT -> rightArrowReleasedRunnable.run()
+            KeyEvent.KEYCODE_DPAD_UP -> upArrowReleasedRunnable.run()
         }
         return super.onKeyUp(keyCode, event)
     }

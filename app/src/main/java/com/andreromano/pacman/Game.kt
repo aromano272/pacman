@@ -75,155 +75,202 @@ class Game {
         val velocity = 5
 
         override fun updateAndRender(canvas: Canvas) {
-            val pressedButtonDirection = pressedButtonDirection
+            if (!::direction.isInitialized && ::queuedDirection.isInitialized) direction = queuedDirection
+            if (::direction.isInitialized && ::queuedDirection.isInitialized) {
+                var newX = x
+                var newY = y
 
-            run {
-                if (pressedButtonDirection != null) {
-                    var newX = x
-                    var newY = y
-                    when (pressedButtonDirection) {
-                        Direction.UP -> newY = y - velocity
-                        Direction.RIGHT -> newX = x + velocity
-                        Direction.DOWN -> newY = y + velocity
-                        Direction.LEFT -> newX = x - velocity
-                    }
+                if (direction == Direction.LEFT && queuedDirection == Direction.RIGHT) direction = queuedDirection
+                if (direction == Direction.RIGHT && queuedDirection == Direction.LEFT) direction = queuedDirection
+                if (direction == Direction.UP && queuedDirection == Direction.DOWN) direction = queuedDirection
+                if (direction == Direction.DOWN && queuedDirection == Direction.UP) direction = queuedDirection
 
-                    // check if out of bounds and wrap
-                    if (newX >= sceneWidth) {
-                        newX -= sceneWidth
-                    }
-                    if (newX < 0) {
-                        newX += sceneWidth
-                    }
-                    if (newY >= sceneHeight) {
-                        newY -= sceneHeight
-                    }
-                    if (newY < 0) {
-                        newY += sceneHeight
-                    }
-
-                    val testPos = Vec2(newX, newY)
-                    val testTLTile = getTilePosFromScreenPos(newX - width / 2, newY - height / 2)
-                    val testTLEntity = getEntity(testTLTile.correctTileOutOfBounds())
-
-                    val testTRTile = getTilePosFromScreenPos(newX + width / 2 - 1, newY - height / 2)
-                    val testTREntity = getEntity(testTRTile.correctTileOutOfBounds())
-
-                    val testBLTile = getTilePosFromScreenPos(newX - width / 2, newY + height / 2 - 1)
-                    val testBLEntity = getEntity(testBLTile.correctTileOutOfBounds())
-
-                    val testBRTile = getTilePosFromScreenPos(newX + width / 2 - 1, newY + height / 2 - 1)
-                    val testBREntity = getEntity(testBRTile.correctTileOutOfBounds())
-
-                    // TODO: Check all entities between pacman and testEntity to prevent tunneling during high speed moves or low frame rate
-                    if (testTLEntity !is WallEntity && testTREntity !is WallEntity && testBLEntity !is WallEntity && testBREntity !is WallEntity) {
-                        screenPos = testPos
-                        tilePos = testTLTile
-
-                        if (testTLEntity is FoodEntity && testTLEntity.canvasRect.intersects(canvasRect)) {
-                            score += 100
-                            removeEntity(testTLEntity)
-                        }
-                        if (testTREntity is FoodEntity && testTREntity.canvasRect.intersects(canvasRect)) {
-                            score += 100
-                            removeEntity(testTREntity)
-                        }
-                        if (testBLEntity is FoodEntity && testBLEntity.canvasRect.intersects(canvasRect)) {
-                            score += 100
-                            removeEntity(testBLEntity)
-                        }
-                        if (testBREntity is FoodEntity && testBREntity.canvasRect.intersects(canvasRect)) {
-                            score += 100
-                            removeEntity(testBREntity)
-                        }
-                    } else {
-                        when (pressedButtonDirection) {
-                            Direction.UP -> {
-                                val newTileY = testTLTile.y + 1
-                                val newScreenY = getScreenYFromTileY(newTileY)
-                                val deltaY = abs(y - newScreenY)
-                                val velocityLeft = velocity - deltaY
-                                y = newScreenY
-
-                                if (velocityLeft > 0 && !(testTLEntity is WallEntity && testTREntity is WallEntity)) {
-                                    if (testTLEntity !is WallEntity) {
-                                        val testTileScreenX = getScreenXFromTileX(testTLTile.x)
-                                        val deltaX = x - testTileScreenX
-                                        x -= min(velocityLeft, deltaX)
-                                    } else {
-                                        val testTileScreenX = getScreenXFromTileX(testTRTile.x)
-                                        val deltaX = testTileScreenX - x
-                                        x += min(velocityLeft, deltaX)
-                                    }
+                when (direction) {
+                    Direction.UP -> newY = y - velocity
+                    Direction.RIGHT -> newX = x + velocity
+                    Direction.DOWN -> newY = y + velocity
+                    Direction.LEFT -> newX = x - velocity
+                }
+                if (direction != queuedDirection) {
+                    when (direction) {
+                        Direction.UP ->
+                            if (queuedDirection == Direction.LEFT) {
+                                val testTilePos = tilePos.copy(x = tileX - 1)
+                                val testScreenPos = getScreenPosFromTilePos(testTilePos)
+                                val testEntity = getEntity(testTilePos)
+                                if (testEntity !is WallEntity && testScreenPos.y <= y && testScreenPos.y >= newY) {
+                                    val deltaY = testScreenPos.y - newY
+                                    val velocityLeft = velocity - deltaY
+                                    newY = testScreenPos.y
+                                    newX -= velocityLeft
+                                    direction = Direction.LEFT
                                 }
-
-                                tilePos = getTilePosFromScreenPos(screenPos)
-                            }
-                            Direction.RIGHT -> {
-                                val newTileX = testTRTile.x - 1
-                                val newScreenX = getScreenXFromTileX(newTileX)
-                                val deltaX = abs(x - newScreenX)
-                                val velocityLeft = velocity - deltaX
-                                x = newScreenX
-
-                                if (velocityLeft > 0 && !(testTREntity is WallEntity && testBREntity is WallEntity)) {
-                                    if (testTREntity !is WallEntity) {
-                                        val testTileScreenY = getScreenYFromTileY(testTRTile.y)
-                                        val deltaY = y - testTileScreenY
-                                        y -= min(velocityLeft, deltaY)
-                                    } else {
-                                        val testTileScreenY = getScreenYFromTileY(testBRTile.y)
-                                        val deltaY = testTileScreenY - y
-                                        y += min(velocityLeft, deltaY)
-                                    }
+                            } else if (queuedDirection == Direction.RIGHT) {
+                                val testTilePos = tilePos.copy(x = tileX + 1)
+                                val testScreenPos = getScreenPosFromTilePos(testTilePos)
+                                val testEntity = getEntity(testTilePos)
+                                if (testEntity !is WallEntity && testScreenPos.y <= y && testScreenPos.y >= newY) {
+                                    val deltaY = testScreenPos.y - newY
+                                    val velocityLeft = velocity - deltaY
+                                    newY = testScreenPos.y
+                                    newX += velocityLeft
+                                    direction = Direction.RIGHT
                                 }
-
-                                tilePos = getTilePosFromScreenPos(screenPos)
                             }
-                            Direction.DOWN -> {
-                                val newTileY = testBLTile.y - 1
-                                val newScreenY = getScreenYFromTileY(newTileY)
-                                val deltaY = abs(y - newScreenY)
-                                val velocityLeft = velocity - deltaY
-                                y = newScreenY
 
-                                if (velocityLeft > 0 && !(testBLEntity is WallEntity && testBREntity is WallEntity)) {
-                                    if (testBLEntity !is WallEntity) {
-                                        val testTileScreenX = getScreenXFromTileX(testBLTile.x)
-                                        val deltaX = x - testTileScreenX
-                                        x -= min(velocityLeft, deltaX)
-                                    } else {
-                                        val testTileScreenX = getScreenXFromTileX(testBRTile.x)
-                                        val deltaX = testTileScreenX - x
-                                        x += min(velocityLeft, deltaX)
-                                    }
+
+                        Direction.RIGHT ->
+                            if (queuedDirection == Direction.UP) {
+                                val testTilePos = tilePos.copy(y = tileY - 1)
+                                val testScreenPos = getScreenPosFromTilePos(testTilePos)
+                                val testEntity = getEntity(testTilePos)
+                                if (testEntity !is WallEntity && testScreenPos.x >= x && testScreenPos.x <= newX) {
+                                    val deltaX = newX - testScreenPos.x
+                                    val velocityLeft = velocity - deltaX
+                                    newX = testScreenPos.x
+                                    newY -= velocityLeft
+                                    direction = Direction.UP
                                 }
-
-                                tilePos = getTilePosFromScreenPos(screenPos)
-                            }
-                            Direction.LEFT -> {
-                                val newTileX = testTLTile.x + 1
-                                val newScreenX = getScreenXFromTileX(newTileX)
-                                val deltaX = abs(x - newScreenX)
-                                val velocityLeft = velocity - deltaX
-                                x = newScreenX
-
-                                if (velocityLeft > 0 && !(testTLEntity is WallEntity && testBLEntity is WallEntity)) {
-                                    if (testTLEntity !is WallEntity) {
-                                        val testTileScreenY = getScreenYFromTileY(testTLTile.y)
-                                        val deltaY = y - testTileScreenY
-                                        y -= min(velocityLeft, deltaY)
-                                    } else {
-                                        val testTileScreenY = getScreenYFromTileY(testBLTile.y)
-                                        val deltaY = testTileScreenY - y
-                                        y += min(velocityLeft, deltaY)
-                                    }
+                            } else if (queuedDirection == Direction.DOWN) {
+                                val testTilePos = tilePos.copy(y = tileY + 1)
+                                val testScreenPos = getScreenPosFromTilePos(testTilePos)
+                                val testEntity = getEntity(testTilePos)
+                                if (testEntity !is WallEntity && testScreenPos.x >= x && testScreenPos.x <= newX) {
+                                    val deltaX = newX - testScreenPos.x
+                                    val velocityLeft = velocity - deltaX
+                                    newX = testScreenPos.x
+                                    newY += velocityLeft
+                                    direction = Direction.DOWN
                                 }
-
-                                tilePos = getTilePosFromScreenPos(screenPos)
                             }
+
+                        Direction.DOWN ->
+                            if (queuedDirection == Direction.LEFT) {
+                                val testTilePos = tilePos.copy(x = tileX - 1)
+                                val testScreenPos = getScreenPosFromTilePos(testTilePos)
+                                val testEntity = getEntity(testTilePos)
+                                if (testEntity !is WallEntity && testScreenPos.y >= y && testScreenPos.y <= newY) {
+                                    val deltaY = newY - testScreenPos.y
+                                    val velocityLeft = velocity - deltaY
+                                    newY = testScreenPos.y
+                                    newX -= velocityLeft
+                                    direction = Direction.LEFT
+                                }
+                            } else if (queuedDirection == Direction.RIGHT) {
+                                val testTilePos = tilePos.copy(x = tileX + 1)
+                                val testScreenPos = getScreenPosFromTilePos(testTilePos)
+                                val testEntity = getEntity(testTilePos)
+                                if (testEntity !is WallEntity && testScreenPos.y >= y && testScreenPos.y <= newY) {
+                                    val deltaY = newY - testScreenPos.y
+                                    val velocityLeft = velocity - deltaY
+                                    newY = testScreenPos.y
+                                    newX += velocityLeft
+                                    direction = Direction.RIGHT
+                                }
+                            }
+
+                        Direction.LEFT ->
+                            if (queuedDirection == Direction.UP) {
+                                val testTilePos = tilePos.copy(y = tileY - 1)
+                                val testScreenPos = getScreenPosFromTilePos(testTilePos)
+                                val testEntity = getEntity(testTilePos)
+                                if (testEntity !is WallEntity && testScreenPos.x <= x && testScreenPos.x >= newX) {
+                                    val deltaX = testScreenPos.x - newX
+                                    val velocityLeft = velocity - deltaX
+                                    newX = testScreenPos.x
+                                    newY -= velocityLeft
+                                    direction = Direction.UP
+                                }
+                            } else if (queuedDirection == Direction.DOWN) {
+                                val testTilePos = tilePos.copy(y = tileY + 1)
+                                val testScreenPos = getScreenPosFromTilePos(testTilePos)
+                                val testEntity = getEntity(testTilePos)
+                                if (testEntity !is WallEntity && testScreenPos.x <= x && testScreenPos.x >= newX) {
+                                    val deltaX = testScreenPos.x - newX
+                                    val velocityLeft = velocity - deltaX
+                                    newX = testScreenPos.x
+                                    newY += velocityLeft
+                                    direction = Direction.DOWN
+                                }
+                            }
+
+                    }
+                }
+
+
+                // check if out of bounds and wrap
+                if (newX >= sceneWidth) {
+                    newX -= sceneWidth
+                }
+                if (newX < 0) {
+                    newX += sceneWidth
+                }
+                if (newY >= sceneHeight) {
+                    newY -= sceneHeight
+                }
+                if (newY < 0) {
+                    newY += sceneHeight
+                }
+
+                val testPos = Vec2(newX, newY)
+                val testTLTile = getTilePosFromScreenPos(newX - width / 2, newY - height / 2)
+                val testTLEntity = getEntity(testTLTile.correctTileOutOfBounds())
+
+                val testTRTile = getTilePosFromScreenPos(newX + width / 2 - 1, newY - height / 2)
+                val testTREntity = getEntity(testTRTile.correctTileOutOfBounds())
+
+                val testBLTile = getTilePosFromScreenPos(newX - width / 2, newY + height / 2 - 1)
+                val testBLEntity = getEntity(testBLTile.correctTileOutOfBounds())
+
+                val testBRTile = getTilePosFromScreenPos(newX + width / 2 - 1, newY + height / 2 - 1)
+                val testBREntity = getEntity(testBRTile.correctTileOutOfBounds())
+
+                // TODO: Check all entities between pacman and testEntity to prevent tunneling during high speed moves or low frame rate
+                if (testTLEntity !is WallEntity && testTREntity !is WallEntity && testBLEntity !is WallEntity && testBREntity !is WallEntity) {
+                    screenPos = testPos
+                    tilePos = getTilePosFromScreenPos(screenPos)
+
+                    if (testTLEntity is FoodEntity && testTLEntity.canvasRect.intersects(canvasRect)) {
+                        score += 100
+                        removeEntity(testTLEntity)
+                    }
+                    if (testTREntity is FoodEntity && testTREntity.canvasRect.intersects(canvasRect)) {
+                        score += 100
+                        removeEntity(testTREntity)
+                    }
+                    if (testBLEntity is FoodEntity && testBLEntity.canvasRect.intersects(canvasRect)) {
+                        score += 100
+                        removeEntity(testBLEntity)
+                    }
+                    if (testBREntity is FoodEntity && testBREntity.canvasRect.intersects(canvasRect)) {
+                        score += 100
+                        removeEntity(testBREntity)
+                    }
+                } else {
+                    // makes pacman snug to the wall when a collision is detected on newX or newY
+                    when (direction) {
+                        Direction.UP -> {
+                            val newTileY = testTLTile.y + 1
+                            val newScreenY = getScreenYFromTileY(newTileY)
+                            y = newScreenY
+                        }
+                        Direction.RIGHT -> {
+                            val newTileX = testTRTile.x - 1
+                            val newScreenX = getScreenXFromTileX(newTileX)
+                            x = newScreenX
+                        }
+                        Direction.DOWN -> {
+                            val newTileY = testBLTile.y - 1
+                            val newScreenY = getScreenYFromTileY(newTileY)
+                            y = newScreenY
+                        }
+                        Direction.LEFT -> {
+                            val newTileX = testTLTile.x + 1
+                            val newScreenX = getScreenXFromTileX(newTileX)
+                            x = newScreenX
                         }
                     }
+                    tilePos = getTilePosFromScreenPos(screenPos)
                 }
             }
             val left = x - width / 2
@@ -422,18 +469,19 @@ class Game {
         frameCount++
     }
 
-    var pressedButtonDirection: Direction? = null
+    lateinit var direction: Direction
+    lateinit var queuedDirection: Direction
 
     fun onViewEvent(viewEvent: ViewEvent) {
         when (viewEvent) {
-            ViewEvent.UP_ARROW_PRESSED -> pressedButtonDirection = Direction.UP
-            ViewEvent.UP_ARROW_RELEASED -> pressedButtonDirection = null
-            ViewEvent.DOWN_ARROW_PRESSED -> pressedButtonDirection = Direction.DOWN
-            ViewEvent.DOWN_ARROW_RELEASED -> pressedButtonDirection = null
-            ViewEvent.LEFT_ARROW_PRESSED -> pressedButtonDirection = Direction.LEFT
-            ViewEvent.LEFT_ARROW_RELEASED -> pressedButtonDirection = null
-            ViewEvent.RIGHT_ARROW_PRESSED -> pressedButtonDirection = Direction.RIGHT
-            ViewEvent.RIGHT_ARROW_RELEASED -> pressedButtonDirection = null
+            ViewEvent.UP_ARROW_PRESSED -> {}
+            ViewEvent.UP_ARROW_RELEASED -> queuedDirection = Direction.UP
+            ViewEvent.DOWN_ARROW_PRESSED -> {}
+            ViewEvent.DOWN_ARROW_RELEASED -> queuedDirection = Direction.DOWN
+            ViewEvent.LEFT_ARROW_PRESSED -> {}
+            ViewEvent.LEFT_ARROW_RELEASED -> queuedDirection = Direction.LEFT
+            ViewEvent.RIGHT_ARROW_PRESSED -> {}
+            ViewEvent.RIGHT_ARROW_RELEASED -> queuedDirection = Direction.RIGHT
             ViewEvent.RESTART_CLICKED -> restartLevel()
         }.exhaustive
     }
