@@ -39,7 +39,8 @@ abstract class Entity(
         tileY = pos.tileY
     }
 
-    abstract fun updateAndRender(canvas: Canvas)
+    abstract fun update(canvas: Canvas)
+    abstract fun render(canvas: Canvas)
 
 }
 

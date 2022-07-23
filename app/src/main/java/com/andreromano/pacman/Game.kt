@@ -2,7 +2,11 @@ package com.andreromano.pacman
 
 import android.graphics.*
 import androidx.core.graphics.toRectF
+import com.andreromano.pacman.entities.FoodEntity
+import com.andreromano.pacman.entities.PowerUpEntity
+import com.andreromano.pacman.entities.WallEntity
 import com.andreromano.pacman.extensions.*
+import kotlin.random.Random
 
 class Game {
 
@@ -71,6 +75,11 @@ class Game {
         color = Color.BLUE
     }
 
+    private val whitePaint = Paint().apply {
+        style = Paint.Style.FILL
+        color = Color.WHITE
+    }
+
     private val yellowPaint = Paint().apply {
         style = Paint.Style.FILL
         color = Color.YELLOW
@@ -83,14 +92,80 @@ class Game {
         tileY: Int,
         width: Int,
         height: Int
+    ) : MovingEntity(x, y, tileX, tileY, width, height) {
+        override fun render(canvas: Canvas) {
+            canvas.drawOval(hitbox.toRectF(), yellowPaint)
+            canvas.drawRect(hitbox.toRectF(), greenStrokePaint)
+        }
+
+        override fun onHitDetected(hitEntity: Entity) {
+            super.onHitDetected(hitEntity)
+            if (hitEntity is FoodEntity) {
+                score += 100
+                removeEntity(hitEntity)
+            } else if (hitEntity is PowerUpEntity) {
+                score += 1001
+                removeEntity(hitEntity)
+            } else if (hitEntity is GhostEntity) {
+                defer { restartLevel() }
+            }
+        }
+    }
+
+    inner class GhostEntity(
+        x: Int,
+        y: Int,
+        tileX: Int,
+        tileY: Int,
+        width: Int,
+        height: Int
+    ) : MovingEntity(x, y, tileX, tileY, width, height) {
+
+        init {
+            changeToRandomDirection()
+        }
+
+        private var isBlue = true
+
+        override fun update(canvas: Canvas) {
+            val oldX = x
+            val oldY = y
+            super.update(canvas)
+            // has stoppped
+            if (oldX == x && oldY == y) {
+                changeToRandomDirection()
+            }
+            println("$frameCount $direction")
+        }
+
+        override fun render(canvas: Canvas) {
+            val blinkFrequency = 20
+            if (frameCount % blinkFrequency == 0L) {
+                isBlue = !isBlue
+            }
+            val paint = if (isBlue) bluePaint else whitePaint
+
+            canvas.drawOval(hitbox.toRectF(), paint)
+            canvas.drawRect(hitbox.copy(top = hitbox.top + height / 2), paint)
+        }
+
+        private fun changeToRandomDirection() {
+            queuedDirection = Direction.values()[Random.nextInt(Direction.values().size)]
+        }
+    }
+
+    abstract inner class MovingEntity(
+        x: Int,
+        y: Int,
+        tileX: Int,
+        tileY: Int,
+        width: Int,
+        height: Int
     ) : Entity(x, y, tileX, tileY, width, height) {
 
+        lateinit var direction: Direction
+        lateinit var queuedDirection: Direction
         val velocity = 3
-
-        override fun updateAndRender(canvas: Canvas) {
-            update(canvas)
-            render(canvas)
-        }
 
         private fun Entity.postMovePosition(velocity: Int, direction: Direction): Position {
             val x = moveXInDirection(x, velocity, direction)
@@ -139,7 +214,7 @@ class Game {
             }
         }
 
-        private fun update(canvas: Canvas) {
+        override fun update(canvas: Canvas) {
             if (!::direction.isInitialized && ::queuedDirection.isInitialized) direction = queuedDirection
             if (!::queuedDirection.isInitialized) return
             var velocityLeft = velocity
@@ -165,7 +240,7 @@ class Game {
                         val testEntity = getAdjacentEntity(currentPos(), queuedDirection)
 
                         if (testEntity is WallEntity) {
-
+                            // no op, do not change direction
                         } else {
                             // finish moving until center cell
                             val distancePastCenterOfTile = distancePastCenterOfTile(postMovePos.x, postMovePos.y, direction)
@@ -175,62 +250,11 @@ class Game {
 
                                 x = getScreenXFromTileX(tileX)
                                 y = getScreenYFromTileY(tileY)
-
                             } else {
-
+                                // no op, do not change direction
                             }
-
-                            // [---][-0x][0--]
-                            // [---][-0x][0--]
                         }
                     }
-
-//                var testEntity: Entity? = null
-//                var newX = x
-//                var newY = y
-//                when (queuedDirection) {
-//                    Direction.UP -> {
-//                        testEntity = getEntity(tileX, tileY - 1)
-//                        newY = y - velocityLeft
-//                    }
-//                    Direction.RIGHT -> {
-//                        testEntity = getEntity(tileX + 1, tileY)
-//                        newX = x + velocityLeft
-//                    }
-//                    Direction.DOWN -> {
-//                        testEntity = getEntity(tileX, tileY + 1)
-//                        newY = y + velocityLeft
-//                    }
-//                    Direction.LEFT -> {
-//                        testEntity = getEntity(tileX - 1, tileY)
-//                        newX = x - velocityLeft
-//                    }
-//                }
-//
-//                if (testEntity is WallEntity && this.createTestHitbox(newX, newY).intersect(testEntity.hitbox)) {
-//
-//                } else if (areDirectionsOpposite(direction, queuedDirection)) {
-//                    direction = queuedDirection
-//                } else {
-//                    // finish moving until center cell
-//                    val distancePastCenterOfTile = distancePastCenterOfTile(x, y, direction)
-//                    if (distancePastCenterOfTile >= 0) {
-//                        direction = queuedDirection
-//                        velocityLeft -= distancePastCenterOfTile
-//                        when (direction) {
-//                            Direction.UP -> y = newY + distancePastCenterOfTile
-//                            Direction.RIGHT -> x = newX - distancePastCenterOfTile
-//                            Direction.DOWN -> y = newY - distancePastCenterOfTile
-//                            Direction.LEFT -> x = newX + distancePastCenterOfTile
-//                        }
-//                    } else {
-//
-//                    }
-                    // change direction
-                    // travel remainder distance after finish moving to center cell
-
-
-
                 }
             }
 
@@ -249,17 +273,12 @@ class Game {
                 Direction.DOWN -> getEntity(tileX, tileY + 1)
                 Direction.LEFT -> getEntity(tileX - 1, tileY)
             }
+            if (testEntity != null && testEntity.hitbox.intersect(this.hitbox)) onHitDetected(testEntity)
             if (testEntity is WallEntity && testEntity.hitbox.intersect(this.hitbox)) {
                 x = getScreenXFromTileX(tileX)
                 y = getScreenYFromTileY(tileY)
 
                 canvas.drawRect(testEntity.hitbox, redStrokePaint)
-            } else if (testEntity is FoodEntity && testEntity.hitbox.intersect(this.hitbox)) {
-                score += 100
-                removeEntity(testEntity)
-            } else if (testEntity is PowerUpEntity && testEntity.hitbox.intersect(this.hitbox)) {
-                score += 1001
-                removeEntity(testEntity)
             }
 
             entitiesMap[tileY][tileX] = null
@@ -272,72 +291,7 @@ class Game {
             // collision
         }
 
-        private fun render(canvas: Canvas) {
-            canvas.drawOval(hitbox.toRectF(), yellowPaint)
-            canvas.drawRect(hitbox.toRectF(), greenStrokePaint)
-        }
-    }
-
-    inner class PowerUpEntity(
-        x: Int,
-        y: Int,
-        tileX: Int,
-        tileY: Int,
-        width: Int,
-        height: Int
-    ) : Entity(x, y, tileX, tileY, width, height) {
-
-        private val paint = Paint().apply {
-            style = Paint.Style.FILL
-            color = Color.LTGRAY
-        }
-
-        override fun updateAndRender(canvas: Canvas) {
-            canvas.drawOval(hitbox.toRectF().scale(0.5f), paint)
-        }
-    }
-
-    inner class WallEntity(
-        x: Int,
-        y: Int,
-        tileX: Int,
-        tileY: Int,
-        width: Int,
-        height: Int
-    ) : Entity(x, y, tileX, tileY, width, height) {
-
-        private val paint = Paint().apply {
-            style = Paint.Style.FILL
-            color = Color.BLUE
-        }
-
-        override fun updateAndRender(canvas: Canvas) {
-            canvas.drawRect(hitbox.toRectF(), paint)
-        }
-    }
-
-    inner class FoodEntity(
-        x: Int,
-        y: Int,
-        tileX: Int,
-        tileY: Int,
-        width: Int,
-        height: Int
-    ) : Entity(x, y, tileX, tileY, width, height) {
-
-        private val paint = Paint().apply {
-            style = Paint.Style.FILL
-            color = Color.LTGRAY
-        }
-
-        private val strokePaint = Paint().apply {
-            style = Paint.Style.STROKE
-            strokeWidth = 2.0.toPx
-            color = Color.LTGRAY
-        }
-
-        override fun updateAndRender(canvas: Canvas) {
-            canvas.drawOval(hitbox.toRectF().scale(0.2f), paint)
+        open fun onHitDetected(hitEntity: Entity) {
         }
     }
 
@@ -354,13 +308,26 @@ class Game {
         color = Color.WHITE
     }
 
+    private val deferred: MutableList<() -> Unit> = mutableListOf()
+
     fun updateAndRender(canvas: Canvas) {
         entitiesMap.forEachIndexed { y, rows ->
             rows.forEachIndexed { x, entity ->
-                if (entity != pacman) entity?.updateAndRender(canvas)
+                if (entity !is MovingEntity) {
+                    entity?.update(canvas)
+                    entity?.render(canvas)
+                }
             }
         }
-        pacman?.updateAndRender(canvas)
+        entitiesMap.forEachIndexed { y, rows ->
+            rows.forEachIndexed { x, entity ->
+                if (entity is MovingEntity) {
+                    entity.update(canvas)
+                    entity.render(canvas)
+                }
+            }
+        }
+
         canvas.drawText("Rect Pos: (${pacman?.x}, ${pacman?.y})", sceneWidth / 2f, sceneHeight / 2f, textPaint)
         canvas.drawText("Score: $score", 50f, sceneHeight - 50f, boldTextPaint)
 
@@ -368,22 +335,28 @@ class Game {
         canvas.drawRect(Rect(sceneWidth, 0, screenWidth, screenHeight), blackPaint)
         canvas.drawRect(Rect(0, sceneHeight, screenWidth, screenHeight), blackPaint)
 
+        deferred.forEach {
+            it()
+        }
+        deferred.clear()
+
         frameCount++
     }
 
-    lateinit var direction: Direction
-    lateinit var queuedDirection: Direction
+    fun defer(runnable: () -> Unit) {
+        deferred += runnable
+    }
 
     fun onViewEvent(viewEvent: ViewEvent) {
         when (viewEvent) {
             ViewEvent.UP_ARROW_PRESSED -> {}
-            ViewEvent.UP_ARROW_RELEASED -> queuedDirection = Direction.UP
+            ViewEvent.UP_ARROW_RELEASED -> pacman?.queuedDirection = Direction.UP
             ViewEvent.DOWN_ARROW_PRESSED -> {}
-            ViewEvent.DOWN_ARROW_RELEASED -> queuedDirection = Direction.DOWN
+            ViewEvent.DOWN_ARROW_RELEASED -> pacman?.queuedDirection = Direction.DOWN
             ViewEvent.LEFT_ARROW_PRESSED -> {}
-            ViewEvent.LEFT_ARROW_RELEASED -> queuedDirection = Direction.LEFT
+            ViewEvent.LEFT_ARROW_RELEASED -> pacman?.queuedDirection = Direction.LEFT
             ViewEvent.RIGHT_ARROW_PRESSED -> {}
-            ViewEvent.RIGHT_ARROW_RELEASED -> queuedDirection = Direction.RIGHT
+            ViewEvent.RIGHT_ARROW_RELEASED -> pacman?.queuedDirection = Direction.RIGHT
             ViewEvent.RESTART_CLICKED -> restartLevel()
         }.exhaustive
     }
@@ -515,6 +488,10 @@ class Game {
                         val entity = PacmanEntity(x, y, tileX, tileY, entityWidth, entityHeight)
                         entitiesMap[tileY][tileX] = entity
                         pacman = entity
+                    }
+                    'G' -> {
+                        val entity = GhostEntity(x, y, tileX, tileY, entityWidth, entityHeight)
+                        entitiesMap[tileY][tileX] = entity
                     }
                     'o' -> {
                         val entity = PowerUpEntity(x, y, tileX, tileY, entityWidth, entityHeight)
