@@ -6,48 +6,46 @@ import android.graphics.RectF
 import androidx.core.graphics.toRectF
 
 abstract class Entity(
-    var screenPos: Vec2,
-    var tilePos: Vec2,
-    val width: Int,
-    val height: Int,
+    var x: Int,
+    var y: Int,
+    var tileX: Int,
+    var tileY: Int,
+    var width: Int,
+    var height: Int
 ) {
 
-    constructor(screenX: Int, screenY: Int, tileX: Int, tileY: Int, width: Int, height: Int) :
-            this(Vec2(screenX, screenY), Vec2(tileX, tileY), width, height)
-
-    var x: Int
-        get() = screenPos.x
-        set(value) {
-            screenPos.x = value
+    private val _rect = Rect()
+    val hitbox: Rect
+        get() = _rect.apply {
+            left = x - width / 2
+            top = y - height / 2
+            right = x + width / 2
+            bottom = y + height / 2
         }
 
-    var y: Int
-        get() = screenPos.y
-        set(value) {
-            screenPos.y = value
-        }
+    fun createTestHitbox(x: Int, y: Int): Rect = Rect(
+        x - width / 2,
+        y - height / 2,
+        x + width / 2,
+        y + height / 2
+    )
 
-    var tileX: Int
-        get() = tilePos.x
-        set(value) {
-            tilePos.x = value
-        }
+    fun currentPos(): Position = Position(x, y, tileX, tileY)
 
-    var tileY: Int
-        get() = tilePos.y
-        set(value) {
-            tilePos.y = value
-        }
-
-    val screenRect: Rect
-        get() = Rect(x - width / 2, y - width / 2, x + width / 2, y + width / 2)
-
-    open val canvasRect: RectF
-        get() = screenRect.toRectF()
-
-    val tileRect: Rect
-        get() = Rect(tileX * width, tileY * height, tileX * width + width, tileY * height + height)
+    fun updatePos(pos: Position) {
+        x = pos.x
+        y = pos.y
+        tileX = pos.tileX
+        tileY = pos.tileY
+    }
 
     abstract fun updateAndRender(canvas: Canvas)
 
 }
+
+data class Position(
+    val x: Int,
+    val y: Int,
+    val tileX: Int,
+    val tileY: Int
+)

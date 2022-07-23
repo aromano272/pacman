@@ -4,6 +4,13 @@ enum class Level(
     val gameboard: String,
 ) {
 
+    TEST
+        ("""
+          ############
+          #P.........#
+          ############
+    """.trimIndent()),
+
     ONE
         ("""
         ############################
