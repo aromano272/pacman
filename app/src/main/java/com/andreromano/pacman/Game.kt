@@ -42,9 +42,9 @@ class Game {
     private var score: Int = 0
 
     private var pacman: PacmanEntity? = null
-    private var entitiesMap: Array<Array<Entity?>> = Array<Array<Entity?>>(mapTileHeight) {
+    private var entitiesMap: Array<Array<MutableList<Entity>>> = Array<Array<MutableList<Entity>>>(mapTileHeight) {
         Array(mapTileWidth) {
-            null
+            mutableListOf()
         }
     }
 
@@ -237,9 +237,9 @@ class Game {
                         (direction.isHorizontal() && (isOnCenterOfTile() || partialTileX != postMovePartialTileX)) ||
                             (direction.isVertical() && (isOnCenterOfTile() || partialTileY != postMovePartialTileY))
                     ) {
-                        val testEntity = getAdjacentEntity(currentPos(), queuedDirection)
+                        val testEntities = getAdjacentEntities(currentPos(), queuedDirection)
 
-                        if (testEntity is WallEntity) {
+                        if (testEntities.any { it is WallEntity }) {
                             // no op, do not change direction
                         } else {
                             // finish moving until center cell
@@ -267,24 +267,29 @@ class Game {
                 Direction.LEFT -> x -= velocityLeft
             }
 
-            val testEntity = when (direction) {
-                Direction.UP -> getEntity(tileX, tileY - 1)
-                Direction.RIGHT -> getEntity(tileX + 1, tileY)
-                Direction.DOWN -> getEntity(tileX, tileY + 1)
-                Direction.LEFT -> getEntity(tileX - 1, tileY)
+            val testEntities = when (direction) {
+                Direction.UP -> getEntities(tileX, tileY - 1)
+                Direction.RIGHT -> getEntities(tileX + 1, tileY)
+                Direction.DOWN -> getEntities(tileX, tileY + 1)
+                Direction.LEFT -> getEntities(tileX - 1, tileY)
             }
-            if (testEntity != null && testEntity.hitbox.intersect(this.hitbox)) onHitDetected(testEntity)
-            if (testEntity is WallEntity && testEntity.hitbox.intersect(this.hitbox)) {
-                x = getScreenXFromTileX(tileX)
-                y = getScreenYFromTileY(tileY)
+            testEntities.forEach { testEntity ->
+                if (testEntity.hitbox.intersect(this.hitbox)) {
+                    onHitDetected(testEntity)
 
-                canvas.drawRect(testEntity.hitbox, redStrokePaint)
+                    if (testEntity is WallEntity) {
+                        x = getScreenXFromTileX(tileX)
+                        y = getScreenYFromTileY(tileY)
+
+                        canvas.drawRect(testEntity.hitbox, redStrokePaint)
+                    }
+                }
             }
 
-            entitiesMap[tileY][tileX] = null
+            entitiesMap[tileY][tileX].remove(this)
             tileX = getTileXFromScreenX(x)
             tileY = getTileYFromScreenY(y)
-            entitiesMap[tileY][tileX] = this
+            entitiesMap[tileY][tileX].add(this)
 
             // queued direction
             // out of bounds wrapping
@@ -311,19 +316,23 @@ class Game {
     private val deferred: MutableList<() -> Unit> = mutableListOf()
 
     fun updateAndRender(canvas: Canvas) {
-        entitiesMap.forEachIndexed { y, rows ->
-            rows.forEachIndexed { x, entity ->
-                if (entity !is MovingEntity) {
-                    entity?.update(canvas)
-                    entity?.render(canvas)
+        entitiesMap.forEach { rows ->
+            rows.forEach { entities ->
+                entities.forEach { entity ->
+                    if (entity !is MovingEntity) {
+                        entity.update(canvas)
+                        entity.render(canvas)
+                    }
                 }
             }
         }
-        entitiesMap.forEachIndexed { y, rows ->
-            rows.forEachIndexed { x, entity ->
-                if (entity is MovingEntity) {
-                    entity.update(canvas)
-                    entity.render(canvas)
+        entitiesMap.forEach { rows ->
+            rows.forEach { entities ->
+                entities.forEach { entity ->
+                    if (entity is MovingEntity) {
+                        entity.update(canvas)
+                        entity.render(canvas)
+                    }
                 }
             }
         }
@@ -362,7 +371,7 @@ class Game {
     }
 
     private fun removeEntity(entity: Entity) {
-        entitiesMap[entity.tileY][entity.tileX] = null
+        entitiesMap[entity.tileY][entity.tileX].remove(entity)
     }
 
     private fun getScreenXFromTileX(tileX: Int): Int = tileX * entityWidth + entityWidth / 2
@@ -428,18 +437,16 @@ class Game {
         Direction.LEFT -> b == Direction.RIGHT
     }
 
-    private fun getEntity(tilePos: Vec2): Entity? = entitiesMap[tilePos.y][tilePos.x]
+    private fun getEntities(tileX: Int, tileY: Int): List<Entity> = entitiesMap[tileY][tileX]
 
-    private fun getEntity(tileX: Int, tileY: Int): Entity? = entitiesMap[tileY][tileX]
+    private fun getEntities(pos: Position): List<Entity> = getEntities(pos.tileX, pos.tileY)
 
-    private fun getEntity(pos: Position): Entity? = entitiesMap[pos.tileY][pos.tileX]
-
-    private fun getAdjacentEntity(currPos: Position, direction: Direction): Entity? = getAdjacentEntity(currPos.tileX, currPos.tileY, direction)
-    private fun getAdjacentEntity(tileX: Int, tileY: Int, direction: Direction): Entity? = when (direction) {
-        Direction.UP -> getEntity(tileX, tileY - 1)
-        Direction.RIGHT -> getEntity(tileX + 1, tileY)
-        Direction.DOWN -> getEntity(tileX, tileY + 1)
-        Direction.LEFT -> getEntity(tileX - 1, tileY)
+    private fun getAdjacentEntities(currPos: Position, direction: Direction): List<Entity> = getAdjacentEntities(currPos.tileX, currPos.tileY, direction)
+    private fun getAdjacentEntities(tileX: Int, tileY: Int, direction: Direction): List<Entity> = when (direction) {
+        Direction.UP -> getEntities(tileX, tileY - 1)
+        Direction.RIGHT -> getEntities(tileX + 1, tileY)
+        Direction.DOWN -> getEntities(tileX, tileY + 1)
+        Direction.LEFT -> getEntities(tileX - 1, tileY)
     }
 
     fun sceneSizeChanged(w: Int, h: Int) {
@@ -473,9 +480,9 @@ class Game {
         sceneWidth = screenWidth - remainderWidth
         sceneHeight = screenHeight - remainderHeight
 
-        entitiesMap = Array<Array<Entity?>>(mapTileHeight) {
+        entitiesMap = Array<Array<MutableList<Entity>>>(mapTileHeight) {
             Array(mapTileWidth) {
-                null
+                mutableListOf()
             }
         }
 
@@ -483,30 +490,30 @@ class Game {
             row.forEachIndexed { tileX, c ->
                 val x = getScreenXFromTileX(tileX)
                 val y = getScreenYFromTileY(tileY)
-                when (c) {
+                val entity: Entity? = when (c) {
                     'P' -> {
-                        val entity = PacmanEntity(x, y, tileX, tileY, entityWidth, entityHeight)
-                        entitiesMap[tileY][tileX] = entity
-                        pacman = entity
+                        PacmanEntity(x, y, tileX, tileY, entityWidth, entityHeight).also {
+                            pacman = it
+                        }
                     }
                     'G' -> {
-                        val entity = GhostEntity(x, y, tileX, tileY, entityWidth, entityHeight)
-                        entitiesMap[tileY][tileX] = entity
+                        GhostEntity(x, y, tileX, tileY, entityWidth, entityHeight)
                     }
                     'o' -> {
-                        val entity = PowerUpEntity(x, y, tileX, tileY, entityWidth, entityHeight)
-                        entitiesMap[tileY][tileX] = entity
+                        PowerUpEntity(x, y, tileX, tileY, entityWidth, entityHeight)
                     }
                     '.' -> {
-                        val entity = FoodEntity(x, y, tileX, tileY, entityWidth, entityHeight)
-                        entitiesMap[tileY][tileX] = entity
+                        FoodEntity(x, y, tileX, tileY, entityWidth, entityHeight)
                     }
                     '#' -> {
-                        val entity = WallEntity(x, y, tileX, tileY, entityWidth, entityHeight)
-                        entitiesMap[tileY][tileX] = entity
+                        WallEntity(x, y, tileX, tileY, entityWidth, entityHeight)
                     }
-                    else -> {}
+                    ' ' -> {
+                        null
+                    }
+                    else -> throw UnsupportedOperationException("Could not parse symbol: '$c' at x: $x y: $y")
                 }
+                if (entity != null) entitiesMap[tileY][tileX].add(entity)
             }
         }
     }
